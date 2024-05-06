@@ -1,0 +1,291 @@
+P16 assembler v1.4.0 (Mar  6 2023)	trab4.lst	Thu Jun 08 11:42:02 2023
+
+Sections
+Index   Name            Address   Size
+0       startup         0000      000E 14
+1       .text           000E      00E0 224
+2       .data           00EE      0010 16
+3       .bss            00FE      0002 2
+4       .stack          0100      0040 64
+
+Symbols
+Name                    Type      Value       Section
+_start                  LABEL     0004 4      startup
+CPSR_BIT_I              ABSOLUTE  0010 16     startup
+inport_addr             LABEL     00A2 162    .text
+INPORT_ADDRESS          ABSOLUTE  FF80 65408  startup
+inport_read             LABEL     009C 156    .text
+isr                     LABEL     00AC 172    .text
+isr_addr                LABEL     000C 12     startup
+LOOP_END                LABEL     008C 140    .text
+main                    LABEL     000E 14     .text
+main_addr               LABEL     000A 10     startup
+outport_addr            LABEL     00AA 170    .text
+OUTPORT_ADDRESS         ABSOLUTE  FFC0 65472  startup
+outport_write           LABEL     00A4 164    .text
+print_resultado         LABEL     007C 124    .text
+PTC_ADDR                LABEL     00EC 236    .text
+PTC_ADDRESS             ABSOLUTE  FF00 65280  startup
+PTC_CMD_START           ABSOLUTE  0000 0      startup
+PTC_CMD_STOP            ABSOLUTE  0001 1      startup
+ptc_get_value           LABEL     00D6 214    .text
+ptc_init                LABEL     00DC 220    .text
+ptc_start               LABEL     00C6 198    .text
+ptc_stop                LABEL     00CE 206    .text
+PTC_TC                  ABSOLUTE  0004 4      startup
+PTC_TCR                 ABSOLUTE  0000 0      startup
+PTC_TIR                 ABSOLUTE  0006 6      startup
+PTC_TMR                 ABSOLUTE  0002 2      startup
+resultado               LABEL     006E 110    .text
+STACK_SIZE              ABSOLUTE  0040 64     startup
+start_time              LABEL     000E 14     .text
+sysclk                  LABEL     00FE 254    .bss
+sysclk_addr             LABEL     00C2 194    .text
+sysclk_addr_addr        LABEL     009A 154    .text
+SYSCLK_FREQ             ABSOLUTE  000A 10     startup
+tos                     LABEL     0140 320    .stack
+tos_addr                LABEL     0008 8      startup
+waittime                LABEL     00EE 238    .data
+waittime_addr           LABEL     00C4 196    .text
+while1                  LABEL     001A 26     .text
+while2                  LABEL     003A 58     .text
+while3                  LABEL     0064 100    .text
+
+Code listing
+   1           	; Ficheiro:  Trabalho 4
+   2           	; Descricao: Programa para realizar testes de reação.
+   3           	;            
+   4           	; Autor: Lucas Silva e Gonçalo Almeida
+   5           	; Data:      31-05-2023
+   6           	
+   7           	; Definicao dos valores dos simbolos utilizados no programa
+   8           	;
+   9          		.equ	STACK_SIZE, 64                ; Dimensao do stack - 64 B
+  10           	; *** Para completar ***
+  11          		.equ	INPORT_ADDRESS, 0xFF80       
+  12          		.equ	OUTPORT_ADDRESS, 0xFFC0       
+  13          		.equ	SYSCLK_FREQ, 0x0A ; 10hz
+  14           		
+  15          		.equ 	PTC_ADDRESS, 0xFF00
+  16          		.equ	PTC_TCR, 0                    ; Deslocamento do registo TCR do pTC
+  17          		.equ	PTC_TMR, 2                    ; Deslocamento do registo TMR do pTC
+  18          		.equ	PTC_TC,  4                    ; Deslocamento do registo TC do pTC
+  19          		.equ	PTC_TIR, 6                    ; Deslocamento do registo TIR do pTC
+  20           	
+  21          		.equ	PTC_CMD_START, 0              ; Comando para iniciar a contagem no pTC
+  22          		.equ	PTC_CMD_STOP, 1               ; Comando para parar a contagem no pTC
+  23          		.equ	CPSR_BIT_I, 0x10
+  24           	; Seccao:    startup
+  25           	; Descricao: Guarda o código de arranque do sistema
+  26           	;
+  27           		.section startup
+  28 0000 01 58		b	_start
+  29 0002 4F 0C		ldr	pc, isr_addr
+  30           	_start:
+  31 0004 1D 0C		ldr	sp, tos_addr
+  32 0006 1F 0C		ldr	pc, main_addr
+  33           	
+  34           	tos_addr:
+  35 0008 40 01		.word	tos
+  36           	main_addr:
+  37 000A 0E 00		.word	main
+  38           	isr_addr:
+  39 000C AC 00		.word	isr
+  40           	
+  41           	; Seccao:    text
+  42           	; Descricao: Guarda o código do programa
+  43           	;
+  44           		.text
+  45           	
+  46           	; Rotina:    main
+  47           	; Descricao: 
+  48           	; Entradas:  
+  49           	; Saidas:  
+  50           	; Efeitos:   
+  51           	main:
+  52           	start_time:
+  53 000E A0 60		mov	r0, #SYSCLK_FREQ ;START TIME & INTERRUPTIONS
+  54 0010 65 5C		bl	ptc_init
+  55 0012 60 B0		mrs	r0, cpsr
+  56 0014 01 61		mov	r1, #CPSR_BIT_I
+  57 0016 80 C8		orr	r0, r0, r1 
+  58 0018 40 B0		msr	cpsr, r0	
+  59           	while1:
+  60 001A 04 60		MOV R4, #0
+  61 001C 05 60		MOV R5, #0
+  62 001E 03 60		MOV R3, #0
+  63 0020 06 60		mov R6, #0	
+  64 0022 F0 6F		MOV R0, #0xFF
+  65 0024 3F 5C		BL outport_write	;Colocar todos os LED's a 1
+  66 0026 3A 5C		BL inport_read		;Analisar o bit user
+  67 0028 80 E7		LSL R0, R0, #15		
+  68 002A 80 EF		LSR R0, R0, #15		
+  69 002C 00 BB		CMP R0, R6			;Caso o bit user esteja a 0 mantém dentro do While
+  70 002E F5 43		BEQ while1 	
+  71 0030 40 0F		ldr	r0, sysclk_addr_addr
+  72 0032 07 60		MOV R7, #0
+  73 0034 07 20		str r7, [r0, #0]
+  74 0036 10 60		MOV R0, #0x01
+  75 0038 35 5C		BL outport_write	;Deixar ligado apenas o LED do estimulo
+  76           	while2:
+  77 003A 30 5C		BL inport_read		;Analisar o bit user
+  78 003C 80 E7		LSL R0, R0, #15
+  79 003E 80 EF		LSR R0, R0, #15
+  80 0040 00 BB		CMP R0, R6			;Caso o bit user seja colocado a 0 retorna ao ciclo anterior
+  81 0042 EB 43		BEQ while1  
+  82 0044 2B 5C		BL inport_read		;Analisar os bits time
+  83 0046 00 E4		LSL R0, R0, #8 
+  84 0048 00 EE		LSR R0, R0, #12 	;Analise dos Bits correspondentes a variavel time
+  85 004A C3 0F		LDR R3, waittime_addr  ; Array de bytes: 1|2|3|4|5|6|7|8|9|10|...|10
+  86 004C 30 18		LDRB r0, [r3, r0]
+  87 004E 94 0F		LDR r4, sysclk_addr
+  88 0050 47 00		ldr	r7, [r4, #0]
+  89 0052 70 B8		CMP R7, R0			;Aguarda o número de segundos colocados na variavel waittime, caso o nosso contador seja menor, permanece no loop
+  90 0054 F2 4B		BLO while2
+  91 0056 00 60		MOV R0, #0			
+  92 0058 25 5C		BL outport_write	;Desligar todos os LED's
+  93 005A 05 60		MOV R5, #0
+  94 005C 20 0F		ldr	r0, sysclk_addr
+  95 005E 07 00		ldr	r7, [r0, #0]
+  96 0060 07 60		MOV R7, #0
+  97 0062 07 20		str r7, [r0, #0]	;Reset na variavel contadora
+  98           	while3:	;Este ciclo vai aguardar o bit user ser colocado a 0
+  99 0064 1B 5C		BL inport_read
+ 100 0066 80 E7		LSL R0, R0, #15
+ 101 0068 80 EF		LSR R0, R0, #15
+ 102 006A 80 BA		CMP R0, R5
+ 103 006C FB 47		BNE while3
+ 104           	resultado:
+ 105 006E 94 0E		LDR r4, sysclk_addr
+ 106 0070 47 00		ldr	r7, [r4, #0]
+ 107 0072 80 B3		MOV R0, R7
+ 108 0074 F5 63		MOV R5, #0x3F	;Valor máximo de reação
+ 109 0076 80 BA		CMP r0, r5		;Verifica se não ultrapassou o tempo máximo, caso não tenha passado faz um branch para print_resultado
+ 110 0078 01 48		BLO print_resultado
+ 111 007A 00 66		MOV r0, #0x60 ;-64 com um logic shift à direita
+ 112           	print_resultado:	
+ 113 007C 80 E0		LSL r0, r0, #1
+ 114 007E 12 5C		BL outport_write		;Liga os led's correspondentes ao tempo demorado a responder ao estimulo de reação em segundos
+ 115 0080 00 0E		ldr	r0, sysclk_addr
+ 116 0082 07 00		ldr	r7, [r0, #0]
+ 117 0084 07 60		MOV R7, #0	
+ 118 0086 07 20		str r7, [r0, #0]		;Reset na variavel contadora
+ 119 0088 A0 60		mov r0, #SYSCLK_FREQ
+ 120 008A 28 5C		bl	ptc_init
+ 121           	LOOP_END:					;Aguarda 5 segundos e volta ao Loop inicial
+ 122 008C B3 0D		LDR R3, waittime_addr  ;1|2|3|4|5|6|7|8|9|10|...|10
+ 123 008E 30 0A		LDRB r0, [r3, #4]
+ 124 0090 84 0D		LDR r4, sysclk_addr
+ 125 0092 47 00		ldr	r7, [r4, #0]
+ 126 0094 70 B8		CMP R7, R0
+ 127 0096 FA 4B		BLO LOOP_END
+ 128 0098 BA 5B		B start_time
+ 129           	
+ 130           	sysclk_addr_addr:
+ 131 009A FE 00		.word sysclk
+ 132           	; Rotina:    inport_read
+ 133           	; Descricao: Guarda em R0 os conteudos inseridos no Porto de entrada ; not sure
+ 134           	; Entradas:  -
+ 135           	; Saidas:    r0 - *** Para completar ***
+ 136           	; Efeitos:   r1 - *** Para completar ***
+ 137           	inport_read:
+ 138 009C 21 0C		ldr	r1, inport_addr
+ 139 009E 10 08		ldrb	r0, [r1, #0]
+ 140 00A0 0F B7		mov	pc, lr
+ 141           	
+ 142           	inport_addr:
+ 143 00A2 80 FF		.word	INPORT_ADDRESS
+ 144           	
+ 145           	
+ 146           	; Rotina:    outport_write
+ 147           	; Descricao: Guarda em R0 os conteudos inseridos no Porto de saida ; not sure
+ 148           	; Entradas:  r0 - *** Para completar ***
+ 149           	; Saidas:    -
+ 150           	; Efeitos:   r1 - *** Para completar ***
+ 151           	outport_write:
+ 152 00A4 21 0C		ldr	r1, outport_addr
+ 153 00A6 10 28		strb	r0, [r1, #0]
+ 154 00A8 0F B7		mov	pc, lr
+ 155           	
+ 156           	outport_addr:
+ 157 00AA C0 FF		.word	OUTPORT_ADDRESS
+ 158           	
+ 159           	isr:
+ 160 00AC 00 24		push	r0
+ 161 00AE 01 24		push	r1
+ 162 00B0 D0 0D		ldr	r0, PTC_ADDR
+ 163 00B2 02 2B		strb r2, [r0, #PTC_TIR]
+ 164 00B4 60 0C		ldr	r0, sysclk_addr
+ 165 00B6 01 00		ldr	r1, [r0, #0]
+ 166 00B8 91 A0		add	r1, r1, #1
+ 167 00BA 01 20		str r1, [r0, #0]
+ 168 00BC 01 04		pop	r1
+ 169 00BE 00 04		pop	r0
+ 170 00C0 20 B0		movs	pc, lr
+ 171           	
+ 172           	sysclk_addr:
+ 173 00C2 FE 00		.word sysclk
+ 174           	
+ 175           	waittime_addr:
+ 176 00C4 EE 00		.word waittime
+ 177           	;ROTINAS: PTC
+ 178           	
+ 179           	;Rotina: PTC_START
+ 180           	ptc_start:
+ 181 00C6 20 0D		ldr	r0, PTC_ADDR
+ 182 00C8 01 60		mov	r1, #PTC_CMD_START
+ 183 00CA 01 28		strb	r1, [r0, #PTC_TCR]
+ 184 00CC 0F B7		mov	pc, lr
+ 185           	
+ 186           	; Rotina:    ptc_stop
+ 187           	ptc_stop:
+ 188 00CE E0 0C		ldr	r0, PTC_ADDR
+ 189 00D0 11 60		mov	r1, #PTC_CMD_STOP
+ 190 00D2 01 28		strb	r1, [r0, #PTC_TCR]
+ 191 00D4 0F B7		mov	pc, lr
+ 192           	
+ 193           	; Rotina:    ptc_get_value
+ 194           	ptc_get_value:
+ 195 00D6 A1 0C		ldr	r1, PTC_ADDR
+ 196 00D8 10 0A		ldrb	r0, [r1, #PTC_TC]
+ 197 00DA 0F B7		mov	pc, lr
+ 198           	
+ 199           	; Rotina:    ptc_init
+ 200           	ptc_init:
+ 201 00DC 0E 24	push lr
+ 202 00DE 00 24	push r0
+ 203 00E0 F6 5F	bl ptc_stop
+ 204 00E2 00 04	pop r0
+ 205 00E4 31 0C	ldr r1, PTC_ADDR
+ 206 00E6 10 29	strb r0, [r1, #PTC_TMR]
+ 207 00E8 EE 5F	bl ptc_start
+ 208 00EA 0F 04	pop pc
+ 209           	
+ 210           	PTC_ADDR:
+ 211 00EC 00 FF	.word	PTC_ADDRESS
+ 212           	
+ 213           	
+ 214           	; Seccao:    data
+ 215           	; Descricao: Guarda as variáveis globais com um valor inicial definido
+ 216           	;
+ 217           		.data
+ 218           		
+ 219           	waittime:	
+ 220          		.byte 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10
+ 220 00EE 01 02 03 04 05 06 07 08 09 0A 0A 0A 0A 0A 0A 0A
+ 221           	; Seccao:    bss
+ 222           	; Descricao: Guarda as variáveis globais sem valor inicial definido
+ 223           	;
+ 224           		.bss
+ 225           	
+ 226           	sysclk:
+ 227 00FE 00   		.space	2
+ 227 00FF 00
+ 228           	; Seccao:    stack
+ 229           	; Descricao: Implementa a pilha com o tamanho definido pelo simbolo STACK_SIZE
+ 230           	;
+ 231           		.stack
+ 232 0100 00   		.space	STACK_SIZE
+ 232 .... ..
+ 232 013F 00
+ 233           	tos:
